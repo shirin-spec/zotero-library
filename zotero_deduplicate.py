@@ -42,8 +42,8 @@ def find_duplicates(items):
         if title:
             if title in seen:
                 duplicates.append({
-                    'keep': seen[title]['key'],
-                    'delete': item_key,
+                    'keep_key': seen[title]['key'],
+                    'merge_key': item_key,
                     'title': data.get('title')
                 })
             else:
@@ -51,13 +51,18 @@ def find_duplicates(items):
     
     return duplicates
 
-def delete_item(item_key):
-    """Delete an item from Zotero"""
-    url = f"{ZOTERO_BASE_URL}/items/{item_key}"
+def merge_items(item1_key, item2_key):
+    """Merge two items in Zotero"""
+    url = f"{ZOTERO_BASE_URL}/items"
     headers = {'Zotero-API-Key': ZOTERO_API_KEY}
-    response = requests.delete(url, headers=headers)
     
-    return response.status_code == 204
+    payload = {
+        'type': 'merge',
+        'items': [item1_key, item2_key]
+    }
+    
+    response = requests.post(url, headers=headers, json=payload)
+    return response.status_code in [200, 201, 204]
 
 def main():
     print("Fetching Zotero library...")
@@ -69,17 +74,17 @@ def main():
     print(f"Found {len(duplicates)} duplicates")
     
     if duplicates:
-        print("\nDeleting duplicates...")
-        deleted_count = 0
+        print("\nMerging duplicates...")
+        merged_count = 0
         
         for dup in duplicates:
-            if delete_item(dup['delete']):
-                print(f"✓ Deleted duplicate: {dup['title']}")
-                deleted_count += 1
+            if merge_items(dup['keep_key'], dup['merge_key']):
+                print(f"✓ Merged: {dup['title']}")
+                merged_count += 1
             else:
-                print(f"✗ Failed to delete: {dup['title']}")
+                print(f"✗ Failed to merge: {dup['title']}")
         
-        print(f"\nDone! Deleted {deleted_count} duplicates")
+        print(f"\nDone! Merged {merged_count} duplicates")
     else:
         print("No duplicates found!")
 
